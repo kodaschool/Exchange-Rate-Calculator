@@ -2,34 +2,62 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import Label from "./form-label";
-import { BASE_URL_COUNTRIES } from "@/constants";
+import { BASE_URL_COUNTRIES, FIXER_CURRENCY_API } from "@/constants";
 import useCountrieshook from "@/hooks/useCountrieshook";
 import CurrencyInput from "./currency-input";
+import useRateshook from "@/hooks/useGetRates";
 export default function CurrencyForm() {
-  const [amountToSend, setAmountToSend] = useState(1);
-  const [amountToRecieve, setAmountToReceive] = useState(1);
-  const [currencies, setCurrencies] = useState([]);
+  const [amountToSend, setAmountToSend] = useState("");
+  const [amountToRecieve, setAmountToReceive] = useState("");
+  const [currencyTo, setCurrencyTo] = useState("🇽🇰 EUR");
+  const [currencyFrom, setCurrencyFrom] = useState("🇺🇸 USD");
   const [countries] = useCountrieshook(BASE_URL_COUNTRIES);
+  const [rates] = useRateshook(FIXER_CURRENCY_API);
+
   const data = countries
     ?.filter((country) => "currencies" in country)
-    .map((ctr: any) => ` ${ctr.flag} ${Object.keys(ctr.currencies)[0]}`);
+    .map((ctr: any) => `${ctr.flag} ${Object.keys(ctr.currencies)[0]}`);
 
-  console.log(data);
-  const handleAmountToSend = () => {};
-  const [rates, setRates] = useState();
-  const [ratesFetched, setRatesFetched] = useState(false);
+  const handleAmountToSend = (amount: number) => {
+    console.log({ amount });
+    setAmountToSend(amount.toString());
+    console.log({ amountToSend });
+    const currencyToRecieve =
+      amountToRecieve &&
+      (parseFloat(amountToSend) * rates[amountToRecieve]) /
+        parseInt(rates[amountToSend]);
 
-  const getRates = async () => {
-    // fetch the data from API
-    const response = await axios(
-      `https://api.exchangeratesapi.net/v1/exchange-rates/latest?access_key=AYnshIvnWo2t17Gw`
+    setAmountToReceive(currencyToRecieve.toString());
+  };
+  const handleAmountToRecieve = (amount: number) => {
+    setAmountToReceive(amount.toString());
+    const currencyToRecieve =
+      (Number(amountToRecieve) * rates[amountToSend]) /
+      parseInt(rates[amountToRecieve]);
+
+    setAmountToSend(currencyToRecieve.toString());
+  };
+  const handleCurrencyToSend = (currencyToSend: string) => {
+    console.log({ currencyToSend });
+    // const currencyToRecieve =
+    //   (amountToSend * rates[currencyFrom]) / Number(rates[currencyToSend]);
+    setCurrencyFrom(currencyToSend);
+    console.log(
+      currencyFrom &&
+        (Number(amountToSend) * rates[currencyFrom]) /
+          Number(rates[currencyToSend]),
+      "from"
     );
-    setRates(response.data);
+    // setAmountToReceive(currencyToRecieve);
+  };
+  const handleCurrencyToRecieve = (currencyToReceive: string) => {
+    console.log({ currencyToReceive });
+    // const currencyToRecieve =
+    //   (amountToRecieve * rates[currencyFrom]) / rates[currencyToReceive];
+    setCurrencyTo(currencyToReceive);
+    // setAmountToSend(currencyToRecieve);
   };
 
-  useEffect(() => {
-    getRates();
-  }, []);
   console.log({ rates });
   return (
     <div>
@@ -40,9 +68,11 @@ export default function CurrencyForm() {
         <div>
           <Label>Recipient Gets</Label>
           <CurrencyInput
-            amountToSend={amountToSend}
-            currencies={countries}
-            onChange={handleAmountToSend}
+            amountToSend={amountToRecieve}
+            currencies={data}
+            onChangeAmount={handleAmountToRecieve}
+            currency={currencyTo}
+            onChangeCurrency={handleCurrencyToRecieve}
           />
         </div>
         <div className="space-y-2 text-[14px]">
@@ -57,7 +87,13 @@ export default function CurrencyForm() {
         </div>
         <div>
           <Label>You send</Label>
-          <input type="text" />
+          <CurrencyInput
+            amountToSend={amountToSend}
+            currencies={data}
+            onChangeAmount={handleAmountToSend}
+            currency={currencyFrom}
+            onChangeCurrency={handleCurrencyToSend}
+          />
         </div>
       </form>
     </div>
